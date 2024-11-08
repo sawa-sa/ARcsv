@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Marker Based AR with AR.js and Three.js</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/110/three.js"></script>
+    <script src="https://raw.githack.com/AR-js-org/AR.js/3.1.0/three.js/build/ar.js"></script>
+    <script src="./CSVManager.js" type="module"></script>
+  </head>
+  <body>
+    <script type="module">
+      import { loadCSVData, normalizeData } from './CSVManager.js';
+
+      const renderer = new THREE.WebGLRenderer({
+        antialias: true,
+        alpha: true
+      });
+      renderer.setClearColor(new THREE.Color(), 0);
+      renderer.setSize(640, 480);
+      renderer.domElement.style.position = 'absolute';
+      renderer.domElement.style.top = '0px';
+      renderer.domElement.style.left = '0px';
+      document.body.appendChild(renderer.domElement);
+
+      const scene = new THREE.Scene();
+      scene.visible = false;
+      const camera = new THREE.Camera();
+      scene.add(camera);
+
+      const arToolkitSource = new THREEx.ArToolkitSource({
+        sourceType: 'webcam'
+      });
+
+      arToolkitSource.init(() => {
+        setTimeout(() => {
+          onResize();
+        }, 2000);
+      });
+
+      addEventListener('resize', () => {
+        onResize();
+      });
+
+      function onResize() {
+        arToolkitSource.onResizeElement();
+        arToolkitSource.copyElementSizeTo(renderer.domElement);
+        if (arToolkitContext.arController !== null) {
+          arToolkitSource.copyElementSizeTo(arToolkitContext.arController.canvas);
+        }
+      }
+
+      const arToolkitContext = new THREEx.ArToolkitContext({
+        cameraParametersUrl: 'data/camera_para.dat',
+        detectionMode: 'mono'
+      });
+
+      arToolkitContext.init(() => {
+        camera.projectionMatrix.copy(arToolkitContext.getProjectionMatrix());
+      });
+
+      const arMarkerControls = new THREEx.ArMarkerControls(arToolkitContext, camera, {
+        type: 'pattern',
+        patternUrl: 'data/patt.hiro',
+        changeMatrixMode: 'cameraTransformMatrix'
+      });
+
+      // グラフの軸を追加する関数
+      function addAxes() {
+        const material = new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.5 });
+        
+        // X軸
+        const xGeometry = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(-0.5, 0, 0), 
+          new THREE.Vector3(0.5, 0, 0)
+        ]);
+        const xAxis = new THREE.Line(xGeometry, material);
+        scene.add(xAxis);
+
+        // Y軸
+        const yGeometry = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, -0.5, 0), 
+          new THREE.Vector3(0, 0.5, 0)
+        ]);
+        const yAxis = new THREE.Line(yGeometry, material);
+        scene.add(yAxis);
+
+        // Z軸
+        const zGeometry = new THREE.BufferGeometry().setFromPoints([
+          new THREE.Vector3(0, 0, -0.5), 
+          new THREE.Vector3(0, 0, 0.5)
+        ]);
+        const zAxis = new THREE.Line(zGeometry, material);
+        scene.add(zAxis);
+      }
+
+      // CSVデータを読み込み、正規化し、散布図として表示する関数
+      async function createScatterPlot() {
+        const data = await loadCSVData('data/points.csv');
+        const normalizedData = normalizeData(data);
+
+        normalizedData.forEach(point => {
+          const geometry = new THREE.SphereGeometry(0.02, 16, 16); // 球のサイズを小さくする
+          const material = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // 球の色を青にする
+          const sphere = new THREE.Mesh(geometry, material);
+          
+          // 正規化した座標を適用
+          sphere.position.set(point.x - 0.5, point.y - 0.5, point.z - 0.5);
+          scene.add(sphere);
+        });
+      }
+
+      addAxes(); // グラフの軸を追加
+      createScatterPlot(); // 散布図を作成
+
+      const clock = new THREE.Clock();
+      requestAnimationFrame(function animate() {
+        requestAnimationFrame(animate);
+        if (arToolkitSource.ready) {
+          arToolkitContext.update(arToolkitSource.domElement);
+          scene.visible = camera.visible;
+        }
+        renderer.render(scene, camera);
+      });
+    </script>
+  </body>
+</html>
