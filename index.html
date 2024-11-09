@@ -123,7 +123,11 @@
 
         normalizedData.forEach(point => {
           const geometry = new THREE.SphereGeometry(0.02, 16, 16); // 球のサイズを小さくする
-          const material = new THREE.MeshBasicMaterial({ color: 0x0000ff }); // 球の色を青にする
+          const material = new THREE.MeshBasicMaterial({
+            color: 0x0000ff,      // 球の色を青にする
+            transparent: true,    // 半透明を有効にする
+            opacity: 0.5          // 透明度を50%に設定
+          });
           const sphere = new THREE.Mesh(geometry, material);
           
           // 正規化した座標を適用
